@@ -35,18 +35,24 @@ local now_pitch = 0
 -- **************** RAM part of acrobat ****************
 -- *** acrobat1 ***
 local A1_DEFDEG = 20
+local A1_DEFZSPEED = 2.5
 local a1_cnt = 0
 local A1_CNT_1 = 180
 local A1_CNT_2 = A1_CNT_1 + 180 * 2
 local A1_CNT_3 = A1_CNT_2 + 180
-local A1_SPEED = 1.2
+local A1_CNT_4 = A1_CNT_3 + 20
+local A1_SPEED_H = 1.2
+local A1_SPEED_V = 0.5
 
 local a1_state = {}
 --             start     end       r  phase(deg)
 a1_state[1] = {       0, A1_CNT_1, 1, 270}
 a1_state[2] = {A1_CNT_1, A1_CNT_2, 2,  90}
 a1_state[3] = {A1_CNT_2, A1_CNT_3, 1, 270}
-a1_state[4] = {     nil,      nil, 0,   0}
+a1_state[4] = {A1_CNT_3, A1_CNT_4, 0,   0}
+a1_state[5] = {     nil,      nil, 0,   0}
+
+local a1_mode   = "H"
 
 local A1_START  = 1
 local A1_END    = 2
@@ -94,18 +100,49 @@ function update()
             
         -- *** tachibana ***
         elseif (test_mode == TESTMODE_ACROBAT1) then
+            local home = ahrs:get_home()
+            local curr_loc = ahrs:get_position()
+            local vec_from_home = curr_loc:get_distance_NED(home)
+
+            if (a1_mode == "H") then
+                a1_speed = A1_SPEED_H
+            else
+                a1_speed = A1_SPEED_V
+            end
+
             for i, v in ipairs(a1_state) do
                 if not (v[A1_END]) then
-                    test_mode = TESTMODE_ACROBAT2
+                    if (a1_mode == "H") then
+                        a1_mode = "V"
+                        a1_cnt = 0
+                    else
+                        test_mode = TESTMODE_ACROBAT2
+                    end
                     break
                 end
 
-                if (a1_cnt * A1_SPEED <= v[A1_END]) then
-                    deg = (a1_cnt * A1_SPEED - v[A1_START]) / v[A1_RADIUS] + v[A1_PHASE]
-                    a1_now_roll  = A1_DEFDEG * (math.cos(math.rad(deg)))
-                    a1_now_pitch = A1_DEFDEG * (math.sin(math.rad(deg)))
-                    vehicle:set_target_angle_and_climbrate(a1_now_roll, a1_now_pitch, 0, 0, false, 0)
-                    gcs:send_text(0, string.format("[L]now r:%.1f, p:%.1f, y:%.1f i:%d deg:%.1f", a1_now_roll, a1_now_pitch, 0, i, deg))
+                if (a1_cnt * a1_speed <= v[A1_END]) then
+                    a1_now_roll   = 0
+                    a1_now_pitch  = 0
+                    a1_climb_rate = 0
+                    if not (v[A1_RADIUS] == 0) then
+                        deg = (a1_cnt * a1_speed - v[A1_START]) / v[A1_RADIUS] + v[A1_PHASE]
+                        if (a1_mode == "H") then
+                            a1_now_roll   = A1_DEFDEG * (math.cos(math.rad(deg)))
+                            a1_now_pitch  = A1_DEFDEG * (math.sin(math.rad(deg)))
+                            vehicle:set_target_angle_and_climbrate(a1_now_roll, a1_now_pitch, 0, a1_climb_rate, false, 0)
+                            gcs:send_text(0, string.format("[L]now i:%d r:%.1f, p:%.1f, y:%.1f c:%.1f deg:%.1f x:%.4f y:%.4f z:%.4f", 
+                                i,a1_now_roll, a1_now_pitch, 0, a1_climb_rate,  deg, vec_from_home:x(), vec_from_home:y(), vec_from_home:z()))
+                        else
+                            local target_vel = Vector3f()
+                            target_vel:x(A1_DEFZSPEED * (math.cos(math.rad(deg))))
+                            target_vel:y(0)
+                            target_vel:z(A1_DEFZSPEED * (math.sin(math.rad(deg))))
+                            vehicle:set_target_velocity_NED(target_vel)
+                            gcs:send_text(0, string.format("[L]now i:%d deg:%.1f x:%.4f y:%.4f z:%.4f", 
+                                i, deg, vec_from_home:x(), vec_from_home:y(), vec_from_home:z()))
+                        end
+                    end
                     break
                 end
             end
