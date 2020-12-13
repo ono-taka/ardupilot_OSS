@@ -56,6 +56,7 @@ local A1_PHASE  = 4
 -- *** acrobat2 ***
 
 -- *** acrobat3 ***
+local ac2_counter = 0
 
 -- *** acrobat4 ***
 
@@ -135,9 +136,48 @@ function update()
             
         -- *** suzuki ***
         elseif (test_mode == TESTMODE_ACROBAT3) then
-            -- check cycle counter
-            cycle_cnt = cycle_cnt + 1
+
+            -- control
+            if (ac2_counter == 0) then  -- Roll left
+                gcs:send_text(0, "[L]----------Roll Left----------")
+                SRV_Channels:set_output_pwm_chan_timeout( 0, 1600, 300)    -- right    ccw
+                SRV_Channels:set_output_pwm_chan_timeout( 1, 1300, 300)    -- left     ccw
+                SRV_Channels:set_output_pwm_chan_timeout( 2, 1550, 300)    -- front    cw
+                SRV_Channels:set_output_pwm_chan_timeout( 3, 1550, 300)    -- rear     cw
+            elseif (ac2_counter == 40) then  -- Roll right
+                gcs:send_text(0, "[L]----------Roll Right----------")
+                SRV_Channels:set_output_pwm_chan_timeout( 0, 1300, 300)    -- right    ccw
+                SRV_Channels:set_output_pwm_chan_timeout( 1, 1600, 300)    -- left     ccw
+                SRV_Channels:set_output_pwm_chan_timeout( 2, 1550, 300)    -- front    cw
+                SRV_Channels:set_output_pwm_chan_timeout( 3, 1550, 300)    -- rear     cw
+            elseif (ac2_counter == 80) then
+                gcs:send_text(0, "[L]----------Backflip----------")
+                SRV_Channels:set_output_pwm_chan_timeout( 0, 1550, 300)    -- right    ccw
+                SRV_Channels:set_output_pwm_chan_timeout( 1, 1550, 300)    -- left     ccw
+                SRV_Channels:set_output_pwm_chan_timeout( 2, 1600, 300)    -- front    cw
+                SRV_Channels:set_output_pwm_chan_timeout( 3, 1300, 300)    -- rear     cw
+            elseif (ac2_counter == 120) then
+                gcs:send_text(0, "[L]----------Forward Rotation----------")
+                SRV_Channels:set_output_pwm_chan_timeout( 0, 1550, 300)    -- right    ccw
+                SRV_Channels:set_output_pwm_chan_timeout( 1, 1550, 300)    -- left     ccw
+                SRV_Channels:set_output_pwm_chan_timeout( 2, 1300, 300)    -- front    cw
+                SRV_Channels:set_output_pwm_chan_timeout( 3, 1600, 300)    -- rear     cw
+            elseif (ac2_counter > 160) then
+                cycle_cnt = cycle_cnt + 1
+            end
+            
+            -- print debug
+            now_yaw = math.deg(ahrs:get_yaw())
+            now_roll = math.deg(ahrs:get_roll())
+            now_pitch = math.deg(ahrs:get_pitch())
+            gcs:send_text(0, string.format("[L]now r:%.1f, p:%.1f, y:%.1f", now_roll, now_pitch, now_yaw))
+
+            ac2_counter = ac2_counter + 1
+
             if (cycle_cnt > 1) then
+                --Add
+                ac2_counter = 0
+
                 cycle_cnt = 0
                 gcs:send_text(0, "[L]start acrobat4")
                 test_mode = TESTMODE_ACROBAT4
