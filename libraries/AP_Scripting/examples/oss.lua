@@ -172,7 +172,7 @@ function update()
                     target_yaw = 180 - (a2_sub_cnt * 2)
                 end
                 vehicle:set_target_angle_and_climbrate(0, target_pitch, target_yaw, 0, FALSE, 0)
-            
+                
             elseif (cycle_cnt < 400) then
                 vehicle:set_target_angle_and_climbrate(0, 0, 0, 0, FALSE, 0)
             else
