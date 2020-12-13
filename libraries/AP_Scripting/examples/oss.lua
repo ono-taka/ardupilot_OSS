@@ -34,6 +34,24 @@ local now_pitch = 0
 
 -- **************** RAM part of acrobat ****************
 -- *** acrobat1 ***
+local A1_DEFDEG = 20
+local a1_cnt = 0
+local A1_CNT_1 = 180
+local A1_CNT_2 = A1_CNT_1 + 180 * 2
+local A1_CNT_3 = A1_CNT_2 + 180
+local A1_SPEED = 1.2
+
+local a1_state = {}
+--             start     end       r  phase(deg)
+a1_state[1] = {       0, A1_CNT_1, 1, 270}
+a1_state[2] = {A1_CNT_1, A1_CNT_2, 2,  90}
+a1_state[3] = {A1_CNT_2, A1_CNT_3, 1, 270}
+a1_state[4] = {     nil,      nil, 0,   0}
+
+local A1_START  = 1
+local A1_END    = 2
+local A1_RADIUS = 3
+local A1_PHASE  = 4
 
 -- *** acrobat2 ***
 
@@ -75,14 +93,23 @@ function update()
             
         -- *** tachibana ***
         elseif (test_mode == TESTMODE_ACROBAT1) then
-            -- check cycle counter
-            cycle_cnt = cycle_cnt + 1
-            if (cycle_cnt > 1) then
-                cycle_cnt = 0
-                gcs:send_text(0, "[L]start acrobat2")
-                test_mode = TESTMODE_ACROBAT2
+            for i, v in ipairs(a1_state) do
+                if not (v[A1_END]) then
+                    test_mode = TESTMODE_ACROBAT2
+                    break
+                end
+
+                if (a1_cnt * A1_SPEED <= v[A1_END]) then
+                    deg = (a1_cnt * A1_SPEED - v[A1_START]) / v[A1_RADIUS] + v[A1_PHASE]
+                    a1_now_roll  = A1_DEFDEG * (math.cos(math.rad(deg)))
+                    a1_now_pitch = A1_DEFDEG * (math.sin(math.rad(deg)))
+                    vehicle:set_target_angle_and_climbrate(a1_now_roll, a1_now_pitch, 0, 0, false, 0)
+                    gcs:send_text(0, string.format("[L]now r:%.1f, p:%.1f, y:%.1f i:%d deg:%.1f", a1_now_roll, a1_now_pitch, 0, i, deg))
+                    break
+                end
             end
-            
+            a1_cnt = a1_cnt + 1
+
         -- *** ono ***
         elseif (test_mode == TESTMODE_ACROBAT2) then
             -- control
